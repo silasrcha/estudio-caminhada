@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Estúdio de Caminhadas</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<!-- fontes servidas da própria pasta: o estúdio não depende de internet -->
+<link rel="stylesheet" href="ativos/fontes/local.css">
+<style>
+  /* ===========================================================
+     Mesmo sistema visual do Estúdio de Cards — cores e tipografia
+     da identidade Marcos Rogério, textura da hachura diagonal da marca.
+     =========================================================== */
+  :root{
+    --azul:#009FE3; --azul-md:#0069B3; --azul-esc:#004F9F; --azul-noite:#0F1A2E;
+    --verde:#52AE32; --verde-esc:#008D3F;
+    --amarelo:#FFDD00; --ambar:#FAB434;
+
+    --bg:#0B121E; --palco:#080D16;
+    --painel:#101A2A; --painel-alto:#16233A;
+    --linha:#1E2E47; --linha2:#2A3E5C;
+
+    --txt:#EAF0F7; --dim:#8296B2; --acc:var(--azul); --ok:var(--verde); --warn:var(--ambar);
+
+    --r:9px; --r-sm:6px;
+    --hachura:repeating-linear-gradient(135deg,
+      #ffffff08 0 1px, transparent 1px 7px);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font:13px/1.45 "Encode Sans",system-ui,-apple-system,sans-serif;
+       display:flex;height:100vh;overflow:hidden}
+
+  #palco{flex:1;display:flex;align-items:center;justify-content:center;padding:20px;
+         min-width:0;background:var(--palco);background-image:var(--hachura)}
+  #wrap{position:relative;box-shadow:0 12px 48px #0009;line-height:0}
+  canvas{display:block;max-width:100%;max-height:calc(100vh - 40px);
+         cursor:grab;touch-action:none;background:#fff}
+  canvas.drag{cursor:grabbing}
+  #vazio{position:absolute;inset:0;display:grid;place-items:center;
+         pointer-events:none;padding:24px}
+  #vazio div{background:#0B121EA6;border:1px solid #ffffff26;border-radius:var(--r);
+             padding:13px 17px;text-align:center;max-width:70%;
+             box-shadow:0 8px 26px #00000059;backdrop-filter:blur(9px) saturate(1.2);
+             pointer-events:auto;cursor:pointer;transition:.15s}
+  #vazio div:hover{background:#0B121ED9;border-color:var(--azul);transform:translateY(-1px)}
+  #vazio .anel{width:34px;height:34px;margin:0 auto 8px;display:block;opacity:.9;
+               background:url('ativos/marca/anel.svg') center/contain no-repeat}
+  #vazio b{display:block;color:#fff;margin-bottom:3px;
+           font:700 12.5px/1.3 "Encode Sans Expanded","Encode Sans",sans-serif;
+           letter-spacing:0}
+  #vazio span{display:block;color:#c2c9d4;font-size:11.5px;line-height:1.4}
+  #dropfx{position:absolute;inset:0;border:3px dashed var(--acc);
+          background:#009FE322;opacity:0;transition:.15s;pointer-events:none}
+  body.over #dropfx{opacity:1}
+
+  #painel{order:-1;width:318px;flex:none;background:var(--painel);
+          border-right:1px solid var(--linha);overflow-y:auto;position:relative}
+  #painel::-webkit-scrollbar{width:9px}
+  #painel::-webkit-scrollbar-thumb{background:var(--linha2);border-radius:9px}
+  #marca{position:sticky;top:0;z-index:6;background:var(--painel)}
+  #marca .onda{height:7px;background:url('ativos/marca/onda.svg') left bottom/auto 22px repeat-x;
+               opacity:.95}
+  #marca .nome{display:flex;align-items:baseline;gap:7px;padding:13px 15px 11px;
+               background:var(--painel-alto);background-image:var(--hachura);
+               border-bottom:1px solid var(--linha)}
+  #marca b{font:900 13px/1 "Encode Sans Expanded","Encode Sans",sans-serif;
+           letter-spacing:-.02em;color:#fff}
+  #marca span{font:500 10px/1 "Encode Sans Condensed","Encode Sans",sans-serif;
+              letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+  /* Volta para o painel com todos os estúdios. Em faixa própria, e não ao lado
+     do título: o painel tem 318px e os títulos são longos — disputando a mesma
+     linha, o nome do estúdio quebrava em duas. */
+  #marca .voltar{display:flex;align-items:center;gap:7px;padding:8px 15px;
+                 background:var(--painel);border-bottom:1px solid var(--linha);
+                 text-decoration:none;
+                 font:600 9.5px/1 "Encode Sans Condensed","Encode Sans",sans-serif;
+                 letter-spacing:.12em;text-transform:uppercase;color:var(--dim);
+                 transition:color .15s,background .15s}
+  #marca .voltar:hover{color:#fff;background:var(--painel-alto)}
+  #marca .voltar svg{width:11px;height:11px;fill:currentColor;flex:none}
+
+  .abas{display:flex;position:sticky;top:0;background:var(--painel);z-index:5;
+        border-bottom:1px solid var(--linha)}
+  .abas button{flex:1;padding:12px 4px 10px;background:none;border:0;position:relative;
+               color:var(--dim);font:600 11px/1 "Encode Sans Condensed","Encode Sans",sans-serif;
+               letter-spacing:.09em;text-transform:uppercase;cursor:pointer;transition:color .15s}
+  .abas button:hover{color:var(--txt)}
+  .abas button.on{color:#fff}
+  /* aba ativa marcada com a barra de 4 cores da marca, a mesma das listras */
+  .abas button.on::after{content:'';position:absolute;left:14%;right:14%;bottom:0;height:3px;
+    background:linear-gradient(90deg,#009640 0 33%,#FFDD00 33% 58%,#fff 58% 70%,#004899 70% 100%)}
+  .pg{display:none;padding:16px} .pg.on{display:block}
+
+  h2{font:600 10.5px/1 "Encode Sans Condensed","Encode Sans",sans-serif;
+     letter-spacing:.11em;text-transform:uppercase;color:var(--dim);
+     margin:0 0 10px;display:flex;align-items:center;gap:7px}
+  h2::before{content:'';width:3px;height:11px;flex:none;border-radius:2px;
+             background:linear-gradient(180deg,var(--azul),var(--verde))}
+  section{border-top:1px solid var(--linha);padding:14px 0}
+  section:first-of-type{border-top:0;padding-top:0}
+
+  .campo{margin-bottom:12px}
+  .campo > label{display:block;font-size:11px;color:var(--dim);margin-bottom:5px}
+  textarea{width:100%;padding:8px 10px;border-radius:var(--r-sm);
+    border:1px solid var(--linha2);background:#0C1524;color:var(--txt);
+    font:500 13px/1.4 "Encode Sans",sans-serif;resize:none;overflow:hidden;
+    display:block;min-height:36px}
+  textarea:focus{outline:0;border-color:var(--azul);box-shadow:0 0 0 3px #009FE31f}
+
+  .dots{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:6px}
+  .dots .vao{width:7px;flex:none}      /* respiro entre famílias de cor */
+  .dots i{width:19px;height:19px;border-radius:50%;cursor:pointer;display:block;flex:none;
+          position:relative;box-shadow:inset 0 0 0 1px #ffffff2e;transition:transform .1s}
+  .dots i:hover{transform:scale(1.18)}
+  .dots i.on{box-shadow:0 0 0 2px var(--painel),0 0 0 4px var(--acc)}
+  /* Aviso de contraste: sinaliza, não impede. Encolhe o círculo em vez de mexer
+     na opacidade — num seletor de cor, alterar o pixel do swatch mentiria
+     sobre o que a pessoa vai receber. */
+  .dots i.fraco{width:12px;height:12px;box-shadow:inset 0 0 0 1px #ffffff1a}
+  .dots i.fraco:hover{transform:scale(1.45)}
+  .dots i.fraco.on{box-shadow:0 0 0 2px var(--painel),0 0 0 4px var(--acc)}
+  #pop .dots i.on{box-shadow:0 0 0 2px #101A2A,0 0 0 4px var(--acc)}
+
+  .btn{display:block;width:100%;padding:9px 12px;margin-bottom:6px;border-radius:var(--r-sm);
+       border:1px solid var(--linha2);background:var(--painel-alto);color:var(--txt);
+       font:500 12.5px/1.4 "Encode Sans",sans-serif;cursor:pointer;text-align:center;
+       transition:.14s}
+  .btn:hover{background:#1D2E49;border-color:var(--azul-md)}
+  .btn.pri{background:var(--azul-md);border-color:var(--azul-md);color:#fff;font-weight:600}
+  .btn.pri:hover{background:var(--azul);border-color:var(--azul)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.mini{padding:6px 9px;font-size:11.5px;margin:0}
+  .row{display:flex;gap:6px} .row .btn{margin-bottom:0}
+
+  label.sl{display:block;margin-bottom:11px}
+  label.sl span{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:4px}
+  label.sl span b{color:var(--txt);font-weight:500;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--acc)}
+
+  .status{display:flex;align-items:center;gap:7px;font-size:11.5px;
+          padding:7px 9px;border-radius:var(--r-sm);background:#0C1524;
+          border:1px solid var(--linha);margin-bottom:7px}
+  .dot{width:7px;height:7px;border-radius:50%;flex:none}
+  .dot.on{background:var(--ok)} .dot.off{background:var(--warn)}
+  .hint{font-size:11px;color:var(--dim);line-height:1.5;margin:8px 0 0}
+  .hint code{background:#0C1524;padding:1px 5px;border-radius:3px;color:var(--azul)}
+  .travado{font-size:11px;color:var(--dim);line-height:1.5;margin:0 0 8px;
+           padding:6px 9px;border-radius:var(--r-sm);background:#0C1524;
+           border:1px solid var(--linha)}
+  input[type=file]{display:none}
+
+  /* pisca o controle que o duplo clique trouxe, pra olho achar onde caiu */
+  @keyframes piscada{0%{box-shadow:0 0 0 0 #009FE300}
+    25%{box-shadow:0 0 0 4px #009FE366}100%{box-shadow:0 0 0 0 #009FE300}}
+  .piscar{animation:piscada .9s ease-out;border-radius:6px}
+
+  /* caixa flutuante ao lado direito da foto */
+  #pop{position:absolute;left:100%;width:268px;z-index:20;line-height:1.45;
+       background:#101A2AE6;border:1px solid var(--linha2);border-radius:var(--r);
+       box-shadow:0 16px 44px #000c;backdrop-filter:blur(14px) saturate(1.25);
+       overflow:hidden}
+  #pop[hidden]{display:none}
+  #pop header{display:flex;align-items:center;gap:8px;padding:9px 8px 9px 13px;
+              border-bottom:1px solid var(--linha);background:var(--painel-alto);
+              background-image:var(--hachura)}
+  #popTit{flex:1;font:600 11px/1 "Encode Sans Condensed","Encode Sans",sans-serif;
+          letter-spacing:.1em;text-transform:uppercase;color:#fff}
+  #popX{background:none;border:0;color:var(--dim);cursor:pointer;font-size:13px;
+        padding:2px 6px;border-radius:5px;line-height:1}
+  #popX:hover{background:#ffffff14;color:var(--txt)}
+  #popCorpo{padding:13px 13px 3px}
+  #popCorpo .campo:last-child{margin-bottom:10px}
+
+  /* cada botão mostra a própria cidade na largura em questão — o designer
+     compara a largura real, não o nome da fonte */
+  .fontes{display:flex;flex-direction:column;gap:4px}
+  .fontes button{padding:6px 9px;border-radius:6px;border:1px solid var(--linha2);
+    background:#0C1524;color:var(--txt);cursor:pointer;text-align:left;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    font-size:15px;font-weight:800;line-height:1.25;transition:.12s}
+  .fontes button:hover{background:#16233A;border-color:var(--azul-md)}
+  .fontes button.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+  .fontes button small{display:block;font:500 9.5px/1.3 "Encode Sans Condensed",sans-serif;
+    letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin-top:1px}
+
+  .logos{display:flex;flex-wrap:wrap;gap:6px}
+  .logos button{flex:1 1 46%;padding:7px;border-radius:6px;border:1px solid var(--linha2);
+                background:#3a4048;cursor:pointer;line-height:0}
+  .logos button.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+  .logos img{width:100%;height:auto}
+</style>
+</head>
+<body>
+
+<div id="palco">
+  <div id="wrap">
+    <canvas id="cv" width="1080" height="1920"></canvas>
+    <div id="vazio">
+      <div>
+        <i class="anel"></i>
+        <b>Clique para escolher uma foto</b>
+        <span>ou solte o arquivo aqui</span>
+      </div>
+    </div>
+    <div id="dropfx"></div>
+    <!-- caixa flutuante: controles do elemento clicado, ao lado da foto -->
+    <div id="pop" hidden>
+      <header><span id="popTit"></span><button id="popX" title="Fechar">✕</button></header>
+      <div id="popCorpo"></div>
+    </div>
+  </div>
+</div>
+
+<div id="painel">
+  <div id="marca">
+    <div class="onda"></div>
+    <div class="nome"><b>ESTÚDIO DE CAMINHADAS</b><span>MR 22</span></div>
+    <a class="voltar" href="https://silasrcha.github.io/painel-estudios/" target="_blank" rel="noopener" title="Abre o painel com todos os estúdios numa nova guia"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z"/></svg>Ferramentas</a>
+  </div>
+  <div class="abas">
+    <button data-p="pFoto" class="on">Foto</button>
+    <button data-p="pTitulo">Título</button>
+    <button data-p="pInfo">Informações</button>
+    <button data-p="pFim">Saída</button>
+  </div>
+
+  <!-- ---------- FOTO ---------- -->
+  <div class="pg on" id="pFoto">
+    <section>
+      <h2>Foto</h2>
+      <div class="status"><i class="dot off" id="dFoto"></i><span id="sFoto">Sem foto</span></div>
+      <button class="btn pri" id="bFoto">Enviar foto</button>
+      <input type="file" id="fFoto" accept="image/*,.heic,.heif">
+    </section>
+
+    <section>
+      <h2>Enquadramento</h2>
+      <label class="sl"><span>Tamanho <b id="vEsc">100%</b></span>
+        <input type="range" id="rEsc" min="20" max="300" value="100"></label>
+      <button class="btn" id="bFit">Reenquadrar</button>
+      <p class="hint">Arraste a foto direto no palco. Segure <code>Shift</code>
+      para prender o movimento num eixo só. O tamanho é sempre proporcional —
+      não tem como distorcer.</p>
+    </section>
+
+    <section>
+      <h2>Corte do feed</h2>
+      <button class="btn" id="bGuia">Ocultar corte do feed</button>
+      <p class="hint">O card é 1080×1920, mas no feed o Instagram mostra
+      <b>3:4 — 1080×1440 cortado ao centro</b>. As duas linhas marcam onde ele
+      corta. Guia de tela: <b>não sai no PNG nem no SVG</b>.</p>
+    </section>
+  </div>
+
+  <!-- ---------- TÍTULO ---------- -->
+  <div class="pg" id="pTitulo">
+    <section>
+      <h2>Faixa do título</h2>
+      <p class="travado">O texto <b>CAMINHADA</b> e o <b>22</b> são fixos:
+      aqui só a cor deles muda. As listras de quatro cores são da marca e
+      não entram na paleta.</p>
+      <div class="campo"><label>Faixa azul</label><div data-cor="blocoTitulo"></div></div>
+      <div class="campo"><label>Palavra CAMINHADA</label><div data-cor="titulo"></div></div>
+      <div class="campo"><label>Número 22</label><div data-cor="vinte2"></div></div>
+    </section>
+    <section>
+      <h2>Bloco de informação</h2>
+      <div class="campo"><label>Fundo do bloco</label><div data-cor="bloco"></div></div>
+    </section>
+  </div>
+
+  <!-- ---------- INFORMAÇÕES ---------- -->
+  <div class="pg" id="pInfo">
+    <section>
+      <h2>Cidade</h2>
+      <div id="cpCidade"></div>
+    </section>
+    <section>
+      <h2>Data e horário</h2>
+      <div id="cpData"></div>
+    </section>
+    <section>
+      <h2>Local</h2>
+      <div id="cpLocal"></div>
+    </section>
+    <section>
+      <h2>Ícones</h2>
+      <div id="cpIcones"></div>
+      <p class="hint">Cada ícone é independente: mudar um não mexe nos outros.</p>
+    </section>
+  </div>
+
+  <!-- ---------- SAÍDA ---------- -->
+  <div class="pg" id="pFim">
+    <section>
+      <h2>Logotipo</h2>
+      <div class="logos" id="logos"></div>
+    </section>
+    <section>
+      <h2>Exportar</h2>
+      <button class="btn pri" id="bPng" disabled>Exportar PNG</button>
+      <button class="btn" id="bSvg" disabled>Exportar SVG para o Figma</button>
+      <p class="hint">PNG sai em resolução real, 1080×1920.<br>
+      O SVG abre no Figma com <b>camadas separadas</b>: textos editáveis, ícones
+      e logotipo em vetor, blocos em forma. A foto entra como imagem — são
+      pixels, não têm como virar vetor.</p>
+    </section>
+  </div>
+</div>
+
+<script type="module">
+import { PALETA, CARD, FOTO, INFO, LOGOS, CORTE_FEED, LARGURAS_CIDADE, plano, pintarFundo, pintar,
+         caminhoFoto, caminhoSvg, svgDosElementos, inicial } from './caminhada.js?v=1';
+
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d');
+
+const S = {
+  c: inicial(),
+  foto: null,
+  fx: 0, fy: 0, esc: 1, base: 1,   // transformação uniforme: nunca distorce
+  zonas: [], alvo: null,
+  arrastando: false, moveu: false, p0: null, t0: null, eixo: null,
+  guia: true,                      // guias do corte do feed, só na tela
+  historico: []
+};
+let logos = {}, logosBrutos = {};
+
+/* ---------- histórico (Ctrl+Z) ---------- */
+const instantaneo = () => JSON.stringify({ c: S.c, fx: S.fx, fy: S.fy, esc: S.esc });
+function marcar(){
+  S.historico.push(instantaneo());
+  if(S.historico.length > 40) S.historico.shift();
+}
+function desfazer(){
+  const v = S.historico.pop();
+  if(!v) return;
+  const e = JSON.parse(v);
+  S.c = e.c; S.fx = e.fx; S.fy = e.fy; S.esc = e.esc;
+  sincronizarPainel(); render();
+}
+
+/* ---------- contraste: aviso, não bloqueio ---------- */
+const canal = v => { v /= 255; return v <= .03928 ? v/12.92 : Math.pow((v+.055)/1.055, 2.4); };
+function luz(hex){
+  const n = parseInt(hex.slice(1), 16);
+  return .2126*canal(n>>16 & 255) + .7152*canal(n>>8 & 255) + .0722*canal(n & 255);
+}
+function contraste(a, b){
+  const la = luz(a), lb = luz(b);
+  return (Math.max(la,lb) + .05) / (Math.min(la,lb) + .05);
+}
+
+/* ---------- bolinhas de cor ---------- */
+function dots(atual, aoEscolher, fundoRef){
+  const d = document.createElement('div');
+  d.className = 'dots';
+  PALETA.forEach((familia, n) => {
+    if(n){ const v = document.createElement('span'); v.className = 'vao'; d.appendChild(v); }
+    for(const cor of familia){
+      const i = document.createElement('i');
+      i.style.background = cor;
+      i.title = cor;
+      if(cor.toUpperCase() === String(atual).toUpperCase()) i.classList.add('on');
+      if(fundoRef && contraste(cor, fundoRef) < 3) i.classList.add('fraco');
+      i.onclick = () => { marcar(); aoEscolher(cor); sincronizarPainel(); render(); };
+      d.appendChild(i);
+    }
+  });
+  return d;
+}
+
+/* campo de cor com rótulo */
+function campoCor(rotulo, atual, aoEscolher, fundoRef){
+  const c = document.createElement('div');
+  c.className = 'campo';
+  const l = document.createElement('label'); l.textContent = rotulo;
+  c.appendChild(l);
+  c.appendChild(dots(atual, aoEscolher, fundoRef));
+  return c;
+}
+
+/* campo de texto que cresce sozinho; Enter quebra a linha no card */
+function campoTexto(rotulo, valor, aoMudar){
+  const c = document.createElement('div');
+  c.className = 'campo';
+  const l = document.createElement('label'); l.textContent = rotulo;
+  const t = document.createElement('textarea');
+  t.value = valor; t.rows = 1;
+  const crescer = () => { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; };
+  let marcou = false;
+  t.oninput = () => {
+    if(!marcou){ marcar(); marcou = true; }
+    aoMudar(t.value); crescer(); render();
+  };
+  t.onblur = () => { marcou = false; };
+  c.appendChild(l); c.appendChild(t);
+  requestAnimationFrame(crescer);
+  return c;
+}
+
+/* ---------- as três cores que andam juntas ----------
+   Dia, data e horário são uma cor só. A barrinha segue essa cor até
+   alguém escolher uma pra ela; a partir daí ela anda sozinha. */
+function trocarCorInfo(cor){
+  S.c.corInfo = cor;
+  if(!S.c.barra.propria) S.c.barra.cor = cor;
+}
+
+/* ===========================================================
+   Definição dos controles de cada elemento. Uma fonte só: o painel
+   e a caixa flutuante montam a partir daqui, então não há como um
+   ficar defasado do outro.
+   =========================================================== */
+const CONTROLES = {
+  blocoTitulo: ['Faixa do título', d => {
+    d.appendChild(campoCor('Cor da faixa', S.c.blocoTitulo.cor, c => S.c.blocoTitulo.cor = c));
+  }],
+  titulo: ['CAMINHADA', d => {
+    d.appendChild(aviso('O texto é fixo. Só a cor muda.'));
+    d.appendChild(campoCor('Cor da palavra', S.c.titulo.cor,
+      c => S.c.titulo.cor = c, S.c.blocoTitulo.cor));
+  }],
+  vinte2: ['Número 22', d => {
+    d.appendChild(aviso('O 22 é desenho, não texto. Só a cor muda.'));
+    d.appendChild(campoCor('Cor do número', S.c.vinte2.cor, c => S.c.vinte2.cor = c));
+  }],
+  bloco: ['Bloco de informação', d => {
+    d.appendChild(campoCor('Fundo do bloco', S.c.bloco.cor, c => S.c.bloco.cor = c));
+  }],
+  cidade: ['Cidade', d => {
+    d.appendChild(campoTexto('Nome da cidade', S.c.cidade.txt, v => S.c.cidade.txt = v));
+    d.appendChild(campoFonte());
+    d.appendChild(campoCor('Cor', S.c.cidade.cor, c => S.c.cidade.cor = c, S.c.bloco.cor));
+  }],
+  dia:  ['Dia da semana', d => linhaInfo(d, 'dia',  'Dia da semana')],
+  data: ['Data',          d => linhaInfo(d, 'data', 'Data')],
+  hora: ['Horário',       d => linhaInfo(d, 'hora', 'Horário')],
+  barra: ['Barrinha', d => {
+    d.appendChild(aviso(S.c.barra.propria
+      ? 'Está com cor própria: não segue mais dia, data e horário.'
+      : 'Segue a cor de dia, data e horário. Escolher aqui solta ela do grupo.'));
+    d.appendChild(campoCor('Cor da barrinha', S.c.barra.cor, c => {
+      S.c.barra.cor = c; S.c.barra.propria = true;
+    }, S.c.bloco.cor));
+    if(S.c.barra.propria){
+      const b = document.createElement('button');
+      b.className = 'btn mini'; b.textContent = 'Voltar a seguir os textos';
+      b.onclick = () => {
+        marcar();
+        S.c.barra.propria = false; S.c.barra.cor = S.c.corInfo;
+        sincronizarPainel(); render();
+      };
+      d.appendChild(b);
+    }
+  }],
+  local: ['Local', d => {
+    d.appendChild(campoTexto('Endereço', S.c.local.txt, v => S.c.local.txt = v));
+    d.appendChild(campoCor('Cor', S.c.local.cor, c => S.c.local.cor = c, S.c.bloco.cor));
+  }],
+  iconeCal: ['Ícone do calendário', d => campoIcone(d, 'iconeCal')],
+  iconeRel: ['Ícone do relógio',    d => campoIcone(d, 'iconeRel')],
+  iconePin: ['Ícone do local',      d => campoIcone(d, 'iconePin')],
+  logo: ['Logotipo', d => d.appendChild(seletorLogo())]
+};
+
+function aviso(txt){
+  const p = document.createElement('p');
+  p.className = 'travado'; p.textContent = txt;
+  return p;
+}
+
+/* O seletor da cor compartilhada. Existe uma vez só como função para o painel
+   e a caixa flutuante nunca saírem de sincronia. */
+const corDosTres = () => campoCor('Cor dos três', S.c.corInfo, trocarCorInfo, S.c.bloco.cor);
+
+/* Dia, data e horário compartilham a cor. Na caixa flutuante o seletor vem
+   junto (você clicou num elemento só); no painel os três textos ficam
+   seguidos e a cor aparece UMA vez no fim — repetir três vezes o mesmo
+   seletor e o mesmo aviso era só ruído. */
+function linhaInfo(d, chave, rotulo, comCor = true){
+  d.appendChild(campoTexto(rotulo, S.c[chave].txt, v => S.c[chave].txt = v));
+  if(comCor){
+    d.appendChild(aviso('Dia da semana, data e horário têm sempre a mesma cor.'));
+    d.appendChild(corDosTres());
+  }
+}
+
+function campoIcone(d, chave){
+  d.appendChild(campoCor('Fundo', S.c[chave].fundo, c => S.c[chave].fundo = c, S.c.bloco.cor));
+  d.appendChild(campoCor('Símbolo', S.c[chave].glifo,
+    c => S.c[chave].glifo = c, S.c[chave].fundo));
+}
+
+/* Largura da fonte do título da cidade — só ela muda; nenhum outro texto do
+   card acompanha. Todas as cinco são Encode Sans no peso 800. */
+function campoFonte(){
+  const c = document.createElement('div');
+  c.className = 'campo';
+  const l = document.createElement('label');
+  l.textContent = 'Largura da fonte';
+  c.appendChild(l);
+  const d = document.createElement('div');
+  d.className = 'fontes';
+  const atual = S.c.cidade.fonte;
+  for(const fam of LARGURAS_CIDADE){
+    const b = document.createElement('button');
+    b.style.fontFamily = '"' + fam + '"';
+    b.textContent = (S.c.cidade.txt || 'CIDADE').toUpperCase().split('\n')[0];
+    const nome = document.createElement('small');
+    nome.textContent = fam.replace('Encode Sans', '').trim() || 'Normal';
+    b.appendChild(nome);
+    if(fam === atual) b.classList.add('on');
+    b.onclick = async () => {
+      marcar();
+      S.c.cidade.fonte = fam;
+      /* mede errado se a face ainda não chegou: carrega antes de redesenhar */
+      try { await document.fonts.load('800 120px "' + fam + '"'); } catch(e){}
+      sincronizarPainel(); render();
+    };
+    d.appendChild(b);
+  }
+  c.appendChild(d);
+  return c;
+}
+
+function seletorLogo(){
+  const d = document.createElement('div');
+  d.className = 'logos';
+  for(const n of LOGOS){
+    const b = document.createElement('button');
+    b.innerHTML = '<img src="ativos/logos/' + n + '.svg" alt="' + n + '">';
+    b.title = n.replace('-', ' ');
+    if(S.c.logo === n) b.classList.add('on');
+    b.onclick = () => { marcar(); S.c.logo = n; sincronizarPainel(); render(); };
+    d.appendChild(b);
+  }
+  return d;
+}
+
+/* ---------- montagem do painel ---------- */
+function montarPainel(){
+  for(const el of document.querySelectorAll('[data-cor]')){
+    el.innerHTML = '';
+    const chave = el.dataset.cor;
+    el.appendChild(dots(S.c[chave].cor, c => S.c[chave].cor = c,
+      chave === 'titulo' ? S.c.blocoTitulo.cor : null));
+  }
+  const monta = (alvo, ids) => {
+    const d = $(alvo); d.innerHTML = '';
+    for(const id of ids){
+      const cx = document.createElement('div');
+      CONTROLES[id][1](cx);
+      d.appendChild(cx);
+    }
+  };
+  monta('cpCidade', ['cidade']);
+
+  // data/horário: os três textos, depois a cor compartilhada uma vez só
+  const dd = $('cpData'); dd.innerHTML = '';
+  linhaInfo(dd, 'dia', 'Dia da semana', false);
+  linhaInfo(dd, 'data', 'Data', false);
+  linhaInfo(dd, 'hora', 'Horário', false);
+  dd.appendChild(aviso('Dia da semana, data e horário têm sempre a mesma cor.'));
+  dd.appendChild(corDosTres());
+  const barra = document.createElement('div');
+  CONTROLES.barra[1](barra);
+  dd.appendChild(barra);
+
+  monta('cpLocal', ['local']);
+  monta('cpIcones', ['iconeCal', 'iconeRel', 'iconePin']);
+  $('logos').replaceWith(Object.assign(seletorLogo(), { id: 'logos' }));
+}
+
+/* Remonta tudo. É barato (são poucas dezenas de nós) e evita a classe de bug
+   em que um controle mostra um valor que o card já não tem. */
+function sincronizarPainel(){
+  montarPainel();
+  if(S.alvo) abrirPop(S.alvo, true);
+  $('vEsc').textContent = Math.round(S.esc / S.base * 100) + '%';
+  $('rEsc').value = Math.round(S.esc / S.base * 100);
+}
+
+/* ---------- caixa flutuante ---------- */
+function abrirPop(id, manter){
+  const def = CONTROLES[id];
+  if(!def) return;
+  S.alvo = id;
+  $('popTit').textContent = def[0];
+  const corpo = $('popCorpo');
+  corpo.innerHTML = '';
+  def[1](corpo);
+  const pop = $('pop');
+  pop.hidden = false;
+  if(!manter){
+    const z = S.zonas.find(z => z.id === id);
+    const escala = cv.clientHeight / CARD.h;
+    const topo = Math.max(4, Math.min((z ? z.y * escala : 40), cv.clientHeight - 200));
+    pop.style.top = topo + 'px';
+    pop.style.marginLeft = '14px';
+  }
+  render();
+}
+$('popX').onclick = () => { $('pop').hidden = true; S.alvo = null; render(); };
+
+/* ---------- foto ---------- */
+function enquadrar(){
+  if(!S.foto) return;
+  S.base = Math.max(FOTO.w / S.foto.naturalWidth, FOTO.h / S.foto.naturalHeight);
+  S.esc = S.base;
+  S.fx = FOTO.x + FOTO.w / 2;
+  S.fy = FOTO.y + FOTO.h / 2;
+}
+function desenharFoto(g){
+  if(!S.foto) return;
+  const w = S.foto.naturalWidth * S.esc, h = S.foto.naturalHeight * S.esc;
+  g.save();
+  caminhoFoto(g); g.clip();
+  g.drawImage(S.foto, S.fx - w/2, S.fy - h/2, w, h);
+  g.restore();
+}
+
+/* ---------- desenho ----------
+   draw() é só o conteúdo — é o que o export usa.
+   render() chama draw() e por cima desenha o apoio visual da tela. */
+function draw(g){
+  g.clearRect(0, 0, CARD.w, CARD.h);
+  g.fillStyle = '#FFFFFF';
+  g.fillRect(0, 0, CARD.w, CARD.h);
+  const p = plano(g, S.c);
+  pintarFundo(g, p);          // listras ficam ATRÁS da foto
+  desenharFoto(g);
+  pintar(g, p, render, logos);
+  return p;
+}
+/* guias do corte 3:4 do feed — desenhadas SÓ aqui, nunca em draw(),
+   que é o que o export usa */
+function guiasDoFeed(g){
+  const { h, y } = CORTE_FEED;
+  g.save();
+  g.strokeStyle = '#00E5FF'; g.lineWidth = 3; g.setLineDash([18, 12]);
+  g.beginPath();
+  g.moveTo(0, y);         g.lineTo(CARD.w, y);
+  g.moveTo(0, y + h);     g.lineTo(CARD.w, y + h);
+  g.stroke();
+  g.restore();
+}
+
+function render(){
+  const p = draw(ctx);
+  S.zonas = p.zonas;
+  if(S.guia) guiasDoFeed(ctx);
+  if(S.alvo){
+    const z = S.zonas.find(z => z.id === S.alvo);
+    if(z){
+      ctx.save();
+      ctx.strokeStyle = '#009FE3'; ctx.lineWidth = 2; ctx.setLineDash([9, 7]);
+      ctx.strokeRect(z.x - 5, z.y - 5, z.w + 10, z.h + 10);
+      ctx.restore();
+    }
+  }
+}
+
+/* ---------- interação no palco ---------- */
+const ponto = ev => {
+  const r = cv.getBoundingClientRect();
+  return { x: (ev.clientX - r.left) * CARD.w / r.width,
+           y: (ev.clientY - r.top)  * CARD.h / r.height };
+};
+/* De trás para frente: as zonas saem do plano na ordem de desenho, então a
+   última é a de cima. Procurando do começo, o retângulo de fundo do BLOCO
+   INFORMAÇÃO — que cobre tudo — ganharia de todos os textos e ícones. */
+function naZona(p){
+  for(let i = S.zonas.length - 1; i >= 0; i--){
+    const z = S.zonas[i];
+    if(p.x >= z.x - 6 && p.x <= z.x + z.w + 6 &&
+       p.y >= z.y - 6 && p.y <= z.y + z.h + 6) return z;
+  }
+  return null;
+}
+
+cv.addEventListener('pointerdown', ev => {
+  if(!S.foto && !naZona(ponto(ev))){ $('fFoto').click(); return; }
+  S.p0 = ponto(ev); S.t0 = { x: S.fx, y: S.fy };
+  S.arrastando = true; S.moveu = false; S.eixo = null;
+  cv.setPointerCapture(ev.pointerId);
+  cv.classList.add('drag');
+});
+cv.addEventListener('pointermove', ev => {
+  if(!S.arrastando) return;
+  const p = ponto(ev);
+  let dx = p.x - S.p0.x, dy = p.y - S.p0.y;
+  if(Math.abs(dx) > 4 || Math.abs(dy) > 4){
+    if(!S.moveu){ marcar(); S.moveu = true; }
+    if(ev.shiftKey){
+      if(!S.eixo) S.eixo = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if(S.eixo === 'x') dy = 0; else dx = 0;
+    } else S.eixo = null;
+  }
+  if(!S.moveu || !S.foto) return;
+  S.fx = S.t0.x + dx; S.fy = S.t0.y + dy;
+  // ímã de centro: encosta se estiver a menos de 10px
+  const cx = FOTO.x + FOTO.w/2, cy = FOTO.y + FOTO.h/2;
+  if(Math.abs(S.fx - cx) < 10) S.fx = cx;
+  if(Math.abs(S.fy - cy) < 10) S.fy = cy;
+  render();
+});
+cv.addEventListener('pointerup', ev => {
+  cv.classList.remove('drag');
+  if(!S.arrastando) return;
+  S.arrastando = false;
+  if(S.moveu) return;                       // foi arrasto, não clique
+  const z = naZona(ponto(ev));
+  if(z) abrirPop(z.id);
+  else { $('pop').hidden = true; S.alvo = null; render(); }
+});
+
+/* ---------- entrada de arquivo ---------- */
+const ehHeic = file => {
+  const nome = (file.name || '').toLowerCase(), tipo = (file.type || '').toLowerCase();
+  return /heic|heif/.test(tipo) || /\.(heic|heif)$/.test(nome);
+};
+function motivoRecusa(file){
+  const nome = (file.name || '').toLowerCase(), tipo = (file.type || '').toLowerCase();
+  if(/\.(tif|tiff)$/.test(nome) || /tiff/.test(tipo))
+    return 'TIFF não abre em navegador. Converta para JPG ou PNG.';
+  if(tipo && !/^image\//.test(tipo) && !ehHeic(file))
+    return 'Este arquivo não é uma imagem (' + tipo + ').';
+  if(file.size > 60 * 1024 * 1024)
+    return 'Arquivo muito grande (' + Math.round(file.size/1048576) + 'MB).';
+  return null;
+}
+
+/* HEIC não é decodificado por navegador nenhum fora do ecossistema Apple.
+   libheif 1.19, carregada só quando aparece o primeiro HEIC. Não troque por
+   heic2any: ele embute a ~1.9, que recusa iPhone atual. */
+let heicPronto = null;
+function carregarHeic(){
+  if(heicPronto) return heicPronto;
+  heicPronto = new Promise((ok, err) => {
+    const t = document.createElement('script');
+    t.src = 'ativos/lib/libheif.js';
+    /* O bundle publica uma FÁBRICA do Emscripten, não o módulo pronto: é
+       preciso chamá-la e esperar o WASM instanciar. */
+    t.onload = async () => {
+      try{
+        const bruto = window.libheif;
+        const mod = typeof bruto === 'function' ? await bruto() : bruto;
+        if(!mod || !mod.HeifDecoder)
+          throw new Error('a biblioteca carregou mas não expôs o decodificador');
+        ok(mod);
+      }catch(e){ err(e); }
+    };
+    t.onerror = () => err(new Error('não consegui carregar o conversor'));
+    document.head.appendChild(t);
+  });
+  return heicPronto;
+}
+async function converterHeic(file){
+  aviso2('Convertendo HEIC…', false);
+  const lib = await carregarHeic();
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let imagens;
+  try { imagens = new lib.HeifDecoder().decode(bytes); }
+  catch(e){ throw new Error('arquivo HEIC ilegível (' + (e.message || e) + ')'); }
+  if(!imagens || !imagens.length) throw new Error('o arquivo não tem imagem dentro');
+  const img = imagens[0];
+  const w = img.get_width(), h = img.get_height();
+  if(!w || !h) throw new Error('imagem sem dimensão');
+  const o = document.createElement('canvas');
+  o.width = w; o.height = h;
+  const q = o.getContext('2d');
+  const dados = q.createImageData(w, h);
+  await new Promise((ok, err) =>
+    img.display(dados, r => r ? ok() : err(new Error('o decodificador não devolveu os pixels'))));
+  q.putImageData(dados, 0, 0);
+  if(img.free) img.free();
+  const blob = await new Promise(r => o.toBlob(r, 'image/jpeg', 0.92));
+  if(!blob) throw new Error('falha ao gerar o JPG');
+  return new File([blob], 'foto.jpg', { type: 'image/jpeg' });
+}
+
+function aviso2(msg, ok){
+  $('dFoto').className = 'dot ' + (ok ? 'on' : 'off');
+  $('sFoto').textContent = msg;
+  $('sFoto').title = msg;
+}
+
+async function carregarFoto(file){
+  if(!file) return;
+  const recusa = motivoRecusa(file);
+  if(recusa){ aviso2(recusa, false); return; }
+  try{
+    if(ehHeic(file)) file = await converterHeic(file);
+  }catch(e){ aviso2('HEIC: ' + (e.message || e), false); return; }
+
+  const url = URL.createObjectURL(file);
+  const im = new Image();
+  im.onload = () => {
+    marcar();
+    S.foto = im;
+    enquadrar();
+    $('vazio').style.display = 'none';
+    aviso2(im.naturalWidth + '×' + im.naturalHeight, true);
+    $('bPng').disabled = false; $('bSvg').disabled = false;
+    sincronizarPainel(); render();
+  };
+  im.onerror = () => { URL.revokeObjectURL(url); aviso2('Não consegui abrir a imagem.', false); };
+  im.src = url;
+}
+
+$('bFoto').onclick = () => $('fFoto').click();
+$('fFoto').onchange = e => { carregarFoto(e.target.files[0]); e.target.value = ''; };
+$('vazio').onclick = () => $('fFoto').click();
+
+addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('over'); });
+addEventListener('dragleave', e => { if(e.relatedTarget === null) document.body.classList.remove('over'); });
+addEventListener('drop', e => {
+  e.preventDefault(); document.body.classList.remove('over');
+  if(e.dataTransfer.files[0]) carregarFoto(e.dataTransfer.files[0]);
+});
+
+/* ---------- escala ---------- */
+$('rEsc').oninput = e => {
+  if(!S.foto) return;
+  S.esc = S.base * (+e.target.value / 100);
+  $('vEsc').textContent = e.target.value + '%';
+  render();
+};
+$('rEsc').onchange = () => marcar();
+$('bFit').onclick = () => { if(!S.foto) return; marcar(); enquadrar(); sincronizarPainel(); render(); };
+
+$('bGuia').onclick = () => {
+  S.guia = !S.guia;
+  $('bGuia').textContent = (S.guia ? 'Ocultar' : 'Mostrar') + ' corte do feed';
+  render();
+};
+
+/* ---------- abas ---------- */
+for(const b of document.querySelectorAll('.abas button')){
+  b.onclick = () => {
+    document.querySelectorAll('.abas button').forEach(x => x.classList.remove('on'));
+    document.querySelectorAll('.pg').forEach(x => x.classList.remove('on'));
+    b.classList.add('on'); $(b.dataset.p).classList.add('on');
+  };
+}
+
+addEventListener('keydown', e => {
+  if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' &&
+     !/^(TEXTAREA|INPUT)$/.test(document.activeElement.tagName)){
+    e.preventDefault(); desfazer();
+  }
+  if(e.key === 'Escape'){ $('pop').hidden = true; S.alvo = null; render(); }
+});
+
+/* ---------- exportar ---------- */
+function baixar(blob, nome){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nome;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+const arquivo = ext => 'caminhada-' +
+  S.c.cidade.txt.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '.' + ext;
+
+$('bPng').onclick = () => {
+  const o = document.createElement('canvas');
+  o.width = CARD.w; o.height = CARD.h;
+  draw(o.getContext('2d'));                 // sem apoio visual: o export usa draw()
+  o.toBlob(b => baixar(b, arquivo('png')), 'image/png');
+};
+
+$('bSvg').onclick = async () => {
+  const p = plano(ctx, S.c);
+  const partes = svgDosElementos(p, logosBrutos[S.c.logo]);
+
+  // a foto entra rasterizada: é pixel, não tem como virar vetor
+  const o = document.createElement('canvas');
+  o.width = FOTO.w; o.height = FOTO.h;
+  const q = o.getContext('2d');
+  if(S.foto){
+    const w = S.foto.naturalWidth * S.esc, h = S.foto.naturalHeight * S.esc;
+    q.drawImage(S.foto, S.fx - w/2 - FOTO.x, S.fy - h/2 - FOTO.y, w, h);
+  }
+  const url = o.toDataURL('image/png');
+  const r = { tl: FOTO.r, tr: FOTO.r, br: FOTO.r, bl: FOTO.r };
+  const foto =
+    '<g id="Foto"><clipPath id="recorteFoto"><path d="' +
+    caminhoSvg(FOTO.x, FOTO.y, FOTO.w, FOTO.h, r) + '"/></clipPath>' +
+    '<image clip-path="url(#recorteFoto)" x="' + FOTO.x + '" y="' + FOTO.y +
+    '" width="' + FOTO.w + '" height="' + FOTO.h + '" href="' + url + '"/></g>';
+
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + CARD.w + '" height="' +
+    CARD.h + '" viewBox="0 0 ' + CARD.w + ' ' + CARD.h + '">\n' +
+    '<rect width="' + CARD.w + '" height="' + CARD.h + '" fill="#FFFFFF"/>\n' +
+    partes.listras + '\n' + foto + '\n' + partes.elementos + '\n</svg>';
+  baixar(new Blob([svg], { type: 'image/svg+xml' }), arquivo('svg'));
+};
+
+/* ---------- carga inicial ---------- */
+for(const n of LOGOS){
+  const im = new Image();
+  im.onload = render;
+  im.src = 'ativos/logos/' + n + '.svg';
+  logos[n] = im;
+  fetch('ativos/logos/' + n + '.svg').then(r => r.text()).then(t => logosBrutos[n] = t);
+}
+
+/* as fontes precisam estar carregadas antes da primeira medição de texto,
+   senão o plano é calculado com a fonte de sistema e sai torto */
+/* as cinco larguras do título precisam estar carregadas antes da primeira
+   medição, senão o plano sai calculado com a fonte de sistema */
+Promise.all(LARGURAS_CIDADE.map(f => document.fonts.load('800 120px "' + f + '"').catch(()=>{})))
+  .then(() => document.fonts.ready)
+  .then(() => { sincronizarPainel(); render(); });
+montarPainel();
+render();
+
+// para inspeção no console durante os testes
+window.S = S; window.render = render; window.draw = draw; window.plano = plano;
+</script>
+</body>
+</html>
